@@ -64,8 +64,8 @@ export default class ImgPie extends Vue {
   $params: any
   $origin: any
   intersectionObserver: any
-  renderActualImage: boolean = false
-  renderImageDone: boolean = false
+  renderActualImage = false
+  renderImageDone = false
   saveData: any = undefined
   resizeObserver: any
   handleResizeObserver = debounce(() => console.log("I'll only run 250ms after the body has finished resizing"), 250)
@@ -136,7 +136,7 @@ export default class ImgPie extends Vue {
     return computedStyle
   }
 
-  get _placeholderStyle() {
+  get _placeholderStyle(): Record<string, string> {
     const placeholderStyle = this.preComputeStyle()
     if (this.mode) {
       placeholderStyle[`backgroundSize`] = this.mode
@@ -175,15 +175,15 @@ export default class ImgPie extends Vue {
 
   transformQueryString(params: any): string {
     return Object.keys(params)
-        .map((key) => key + '=' + params[key])
-        .join('&')
+      .map((key) => key + '=' + params[key])
+      .join('&')
   }
 
   cssWithoutPx(css: string): number {
     return Number(css.replace(rPx, ``))
   }
 
-  onImageLoad() {
+  onImageLoad(): void {
     this.renderImageDone = true
     console.log('loaded')
   }
@@ -202,7 +202,7 @@ export default class ImgPie extends Vue {
     return preComputedStyle
   }
 
-  computeEverything(element: Element) {
+  computeEverything(element: Element): Record<string, string> {
     const config: any = {}
     let _ratio
     if (!this.lazy) {
@@ -241,7 +241,7 @@ export default class ImgPie extends Vue {
     }
   }
 
-  computeImageSrc() {
+  computeImageSrc(): string {
     const placeholderEl: any = this.$refs.p
     const computedPlaceholder = this.computeEverything(placeholderEl)
     const params: any = {}
@@ -267,21 +267,21 @@ export default class ImgPie extends Vue {
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
 
-  computePlaceholderBackground(element: Element): any {
+  computePlaceholderBackground(element: Element): Record<string, string> {
     if (!this.placeholder || !this.src || this.transition.hasOwnProperty(`zoom`)) {
       return {}
     }
     return this.computeEverything(element)
   }
 
-  computePreTransform({ x, y }: AnchorObject) {
+  computePreTransform({ x, y }: AnchorObject): Record<string, string> {
     const actualFocus = this.mode !== `contain` && (this.focus || (y ? (x ? `${y}-${x}` : y) : x))
     return {
       focus: actualFocus,
     }
   }
 
-  setPlaceholderElement(placeholderElement: HTMLDivElement, domain: string) {
+  setPlaceholderElement(placeholderElement: HTMLDivElement, domain: string): void {
     if (!placeholderElement || !domain) {
       return
     }
@@ -312,16 +312,16 @@ export default class ImgPie extends Vue {
     placeholderElement.style.backgroundImage = backgroundImage
   }
 
-  onInteractionEnter() {
+  onInteractionEnter(): void {
     this.renderActualImage = true
     this.intersectionObserver.disconnect()
   }
 
-  created() {
+  created(): void {
     this.renderActualImage = !this.lazy
   }
 
-  mounted() {
+  mounted(): void {
     if (this.lazy) {
       const placeholderRef: any = this.$refs.p
       this.resizeObserver = new ResizeObserver(this.handleResizeObserver)
@@ -338,7 +338,7 @@ export default class ImgPie extends Vue {
     }
   }
 
-  unmounted() {
+  unmounted(): void {
     if (this.resizeObserver) {
       this.resizeObserver.unobserve()
     }

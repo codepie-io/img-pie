@@ -1,17 +1,13 @@
 {
   "name": "@codepie/img-pie",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A Vue component for img pie proxy.",
-  "author": "The @codepie/material-vue authors (https://github.com/codepie-io/material-vue/graphs/contributors)",
+  "author": "The @codepie/material-vue authors (https://github.com/codepie-io/img-pie/graphs/contributors)",
   "maintainers": [
     "Prakash Bharti <prakash.codepie@gmail.com>"
   ],
   "license": "MIT",
-  "main": "dist/img-pie.ssr.js",
-  "browser": "dist/img-pie.esm.js",
-  "module": "dist/img-pie.esm.js",
-  "unpkg": "dist/img-pie.min.js",
-  "types": "dist/types/src/entry.esm.d.ts",
+  "main": "./dist/img-pie.common.js",
   "files": [
     "dist/*",
     "src/**/*.vue"
@@ -25,48 +21,45 @@
   },
   "sideEffects": false,
   "scripts": {
-    "serve": "vue-cli-service serve dev/serve.ts",
-    "prebuild": "rimraf ./dist",
-    "build": "cross-env NODE_ENV=production rollup --config build/rollup.config.js",
-    "build:ssr": "cross-env NODE_ENV=production rollup --config build/rollup.config.js --format cjs",
-    "build:es": "cross-env NODE_ENV=production rollup --config build/rollup.config.js --format es",
-    "build:unpkg": "cross-env NODE_ENV=production rollup --config build/rollup.config.js --format iife",
-    "postbuild": "rimraf ./dist/types/dev ./dist/types/src/entry.d.ts"
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint",
+    "build-library": "vue-cli-service build --target lib --name img-pie ./src/install.js",
+    "publish-package": "npm run build-library && npm publish --access public"
+
   },
   "keywords": [
     "image proxy",
     "img-pie"
   ],
   "devDependencies": {
-    "@babel/core": "^7.14.6",
-    "@babel/preset-env": "^7.14.7",
-    "@babel/preset-typescript": "^7.14.5",
-    "@rollup/plugin-alias": "^3.1.2",
-    "@rollup/plugin-babel": "^5.3.0",
-    "@rollup/plugin-commonjs": "^14.0.0",
-    "@rollup/plugin-node-resolve": "^9.0.0",
-    "@rollup/plugin-replace": "^2.4.2",
-    "@vue/cli-plugin-babel": "^4.5.13",
-    "@vue/cli-plugin-typescript": "^4.5.13",
-    "@vue/cli-service": "^4.5.13",
-    "@zerollup/ts-transform-paths": "^1.7.18",
-    "cross-env": "^7.0.3",
-    "minimist": "^1.2.5",
-    "rimraf": "^3.0.2",
-    "rollup": "^2.52.8",
-    "rollup-plugin-terser": "^7.0.2",
-    "rollup-plugin-typescript2": "^0.30.0",
-    "rollup-plugin-vue": "^5.1.9",
-    "ttypescript": "^1.5.12",
-    "typescript": "^4.0.3",
-    "vue": "^2.6.14",
-    "vue-property-decorator": "^9.1.2",
-    "vue-template-compiler": "^2.6.14"
+    "@typescript-eslint/eslint-plugin": "^4.18.0",
+    "@typescript-eslint/parser": "^4.18.0",
+    "@vue/cli-plugin-babel": "~4.5.13",
+    "@vue/cli-plugin-eslint": "~4.5.13",
+    "@vue/cli-plugin-typescript": "~4.5.13",
+    "@vue/cli-service": "~4.5.13",
+    "@vue/eslint-config-prettier": "^6.0.0",
+    "@vue/eslint-config-typescript": "^7.0.0",
+    "eslint": "^6.7.2",
+    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-vue": "^6.2.2",
+    "prettier": "^2.2.1",
+    "sass": "^1.26.5",
+    "sass-loader": "^8.0.2",
+    "typescript": "~4.1.5",
+    "vue-template-compiler": "^2.6.11"
   },
   "peerDependencies": {
     "vue": "^2.6.14"
   },
   "engines": {
     "node": ">=12"
+  },
+  "dependencies": {
+    "core-js": "^3.6.5",
+    "vue": "^2.6.11",
+    "vue-class-component": "^7.2.3",
+    "vue-property-decorator": "^9.1.2"
   }
 }

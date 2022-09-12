@@ -1,8 +1,8 @@
-import ImgPie from './ImgPie.vue'
+import ImgPie from './img-pie.vue'
 import script from './utils'
 
 const VueImgPie = {
-  install(Vue, options) {
+  install(Vue: any, options: any) {
     Vue.component('img-pie', ImgPie)
 
     if (typeof window !== 'undefined') {
