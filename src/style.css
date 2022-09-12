@@ -1,0 +1,91 @@
+/* ISOLATION */
+.img-pie-i {
+  overflow: hidden;
+}
+.img-pie-w,
+.img-pie-w * {
+  border: none;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.img-pie-w {
+  /* constants */
+  overflow: hidden;
+  position: relative;
+  padding-top: 100%;
+  width: 100%;
+  padding-top: calc(100% / var(--img-pie-ratio, 1));
+}
+.img-pie-w > * {
+  /* constants */
+  display: block;
+  left: 0;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  visibility: hidden;
+  width: 100%;
+  transition-property: opacity, transform;
+  will-change: opacity, transform;
+  object-fit: cover;
+  object-position: center;
+  transition-delay: 0s;
+  transition-duration: 400ms;
+  transition-timing-function: ease;
+  object-fit: var(--img-pie-mode, cover);
+  object-position: var(--img-pie-position, center);
+  transition-delay: var(--img-pie-transition-delay, 0s);
+  transition-duration: var(--img-pie-transition-duration, 400ms);
+  transition-timing-function: var(--img-pie-transition-timing-function, ease);
+}
+/* PLACEHOLDER */
+.img-pie-w > div {
+  /* constants */
+  background-repeat: no-repeat;
+  visibility: visible;
+  /* defaults */
+  background-size: cover;
+  background-position: center;
+  /* variables */
+  background-size: var(--img-pie-mode, cover);
+  background-position: var(--img-pie-position, center);
+  /* trick to get ratio easily */
+  font-size: calc(1px / var(--img-pie-ratio, 1));
+}
+
+.img-pie-w.img-pie-tz > img {
+  transform: scale(0);
+}
+
+.img-pie-w.img-pie-tf > div {
+  opacity: 1;
+}
+
+/* MAKES ANGULAR COMPONENT WRAPPER BEHAVES LIKE A DIV */
+.img-pie-d {
+  display: block;
+  width: 100%;
+}
+
+/* OFFLINE PLACEHOLDERS AND ITS CHILDREN */
+.img-pie-offline {
+  background-color: #ccc;
+}
+
+.img-pie-offline.img-pie-nosrc {
+  background-color: #fd0016;
+}
+
+.img-pie-offline > * {
+  display: none;
+}
+
+.img-pie-w > .img-pie-done + div {
+  opacity: 0 !important;
+}
+
+.img-pie-w > .img-pie-done {
+  transform: none !important;
+  visibility: visible !important;
+}
