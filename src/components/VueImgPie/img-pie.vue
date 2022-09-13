@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator'
+import { Component, Prop, Vue, Watch } from "vue-property-decorator";
 import { debounce, onIntersect } from './utils'
 import { AnchorObject, Mode, Placeholder } from './types'
 import './style.css'
@@ -21,6 +21,7 @@ const rPx = /px$/
 export default class ImgPie extends Vue {
   @Prop({ type: String, default: '' }) readonly alt!: string
   @Prop({ type: String, default: '' }) readonly origin!: string
+  @Prop({ type: Boolean, default: false }) readonly active!: boolean
   @Prop({ type: Boolean, default: false }) readonly disableDpr!: boolean
   @Prop({ type: Boolean, default: true }) readonly lazy!: boolean
   @Prop({
@@ -59,6 +60,13 @@ export default class ImgPie extends Vue {
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
   @Prop({ type: String, default: '400ms' }) readonly transitionDuration!: string
   @Prop({ type: String, default: 'ease' }) readonly transitionTimingFunction!: string
+
+  @Watch('active', { immediate: true })
+  onActive(value: any) {
+    if(value) {
+      this.renderActualImage = value
+    }
+  }
 
   $domain: any
   $params: any
@@ -275,7 +283,7 @@ export default class ImgPie extends Vue {
   }
 
   computePreTransform({ x, y }: AnchorObject): Record<string, string> {
-    const actualFocus = this.mode !== `contain` && (this.focus || (y ? (x ? `${y}-${x}` : y) : x))
+    const actualFocus: any = this.mode !== `contain` && (this.focus || (y ? (x ? `${y}-${x}` : y) : x))
     return {
       focus: actualFocus,
     }
@@ -318,7 +326,9 @@ export default class ImgPie extends Vue {
   }
 
   created(): void {
-    this.renderActualImage = !this.lazy
+    if(!this.active) {
+      this.renderActualImage = !this.lazy
+    }
   }
 
   mounted(): void {
@@ -339,8 +349,9 @@ export default class ImgPie extends Vue {
   }
 
   unmounted(): void {
-    if (this.resizeObserver) {
-      this.resizeObserver.unobserve()
+    const placeholderRef: any = this.$refs.p
+    if (this.resizeObserver && placeholderRef) {
+      this.resizeObserver.unobserve(placeholderRef)
     }
     if (this.intersectionObserver) {
       this.intersectionObserver.disconnect()

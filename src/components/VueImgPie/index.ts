@@ -9,12 +9,14 @@ const VueImgPie = {
       Vue.use(script)
       Vue.script({
         domain: options.domain,
+        origin: options.origin,
         params: options.params,
       })
     }
 
     Vue.prototype.$params = options.params
     Vue.prototype.$domain = options.domain
+    Vue.prototype.$origin = options.origin
   },
 }
 

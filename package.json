@@ -1,6 +1,6 @@
 {
   "name": "@codepie/img-pie",
-  "version": "0.1.0",
+  "version": "2.3.0",
   "description": "A Vue component for img pie proxy.",
   "author": "The @codepie/material-vue authors (https://github.com/codepie-io/img-pie/graphs/contributors)",
   "maintainers": [
@@ -10,7 +10,7 @@
   "main": "./dist/img-pie.common.js",
   "files": [
     "dist/*",
-    "src/**/*.vue"
+    "src/*"
   ],
   "repository": {
     "type": "git",
@@ -26,7 +26,6 @@
     "lint": "vue-cli-service lint",
     "build-library": "vue-cli-service build --target lib --name img-pie ./src/install.js",
     "publish-package": "npm run build-library && npm publish --access public"
-
   },
   "keywords": [
     "image proxy",
@@ -58,7 +57,7 @@
   },
   "dependencies": {
     "core-js": "^3.6.5",
-    "vue": "^2.6.11",
+    "vue": "^2.6.14",
     "vue-class-component": "^7.2.3",
     "vue-property-decorator": "^9.1.2"
   }
