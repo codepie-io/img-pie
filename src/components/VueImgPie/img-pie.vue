@@ -270,7 +270,7 @@ export default class ImgPie extends Vue {
       }
     }
     const queryString = this.transformQueryString(params)
-    return queryString ? `${this.$domain}/${this.src}?${queryString}` : `${this.$domain}${this.src}`
+    return queryString ? `${this.$domain}${this.getUrlWithLeadingSlash(this.src)}?${queryString}` : `${this.$domain}${this.getUrlWithLeadingSlash(this.src)}`
   }
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
@@ -287,6 +287,13 @@ export default class ImgPie extends Vue {
     return {
       focus: actualFocus,
     }
+  }
+
+  getUrlWithLeadingSlash(relativePath: string) {
+    if(relativePath.charAt(0) === '/') {
+      return relativePath
+    }
+    return `/${relativePath}`
   }
 
   setPlaceholderElement(placeholderElement: HTMLDivElement, domain: string): void {
@@ -316,7 +323,7 @@ export default class ImgPie extends Vue {
     }
     let backgroundImage = ''
     const queryString = this.transformQueryString(params)
-    backgroundImage = `url(${domain}/${wrapperBackground.src}?${queryString})`
+    backgroundImage = `url(${domain}${this.getUrlWithLeadingSlash(wrapperBackground.src)}?${queryString})`
     placeholderElement.style.backgroundImage = backgroundImage
   }
 
