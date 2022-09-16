@@ -1,17 +1,16 @@
 <template>
-  <div class="img-pie-i">
-    <div ref="imgPie" :class="_wrapperClass" :style="_wrapperStyle">
-      <img :alt="_alt" :style="_style" :src="_src" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
+  <div ref="imgPie" class="img-pie-i">
+    <div :class="_wrapperClass" :style="_wrapperStyle">
+      <img :alt="_alt" :loading="this.lazy ? 'lazy' : false" :style="_style" :src="_src" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
       <div ref="p" :style="_placeholderStyle" />
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from "vue-property-decorator";
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator'
 import { debounce, onIntersect } from './utils'
 import { AnchorObject, Mode, Placeholder } from './types'
-import './style.css'
 
 const rPx = /px$/
 
@@ -23,6 +22,7 @@ export default class ImgPie extends Vue {
   @Prop({ type: String, default: '' }) readonly origin!: string
   @Prop({ type: Boolean, default: false }) readonly active!: boolean
   @Prop({ type: Boolean, default: false }) readonly disableDpr!: boolean
+  @Prop({ type: Boolean, default: false }) readonly enablePlaceholder!: boolean
   @Prop({ type: Boolean, default: true }) readonly lazy!: boolean
   @Prop({
     type: String,
@@ -47,7 +47,7 @@ export default class ImgPie extends Vue {
   @Prop({ type: String, default: '' }) readonly preTransform!: string
   @Prop({
     type: Number,
-    default: undefined,
+    default: 1,
   })
   readonly ratio!: number | undefined
   @Prop({
@@ -56,14 +56,14 @@ export default class ImgPie extends Vue {
   })
   readonly step!: number | undefined
   @Prop({ type: String, required: true }) readonly src!: string
-  @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: Record<string, boolean>
+  @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: any
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
   @Prop({ type: String, default: '400ms' }) readonly transitionDuration!: string
   @Prop({ type: String, default: 'ease' }) readonly transitionTimingFunction!: string
 
   @Watch('active', { immediate: true })
-  onActive(value: any) {
-    if(value) {
+  onActive(value: boolean): void {
+    if (value && this.windowReady) {
       this.renderActualImage = value
     }
   }
@@ -71,8 +71,10 @@ export default class ImgPie extends Vue {
   $domain: any
   $params: any
   $origin: any
-  intersectionObserver: any
+  imgIntersectionObserver: any = null
+  placeholderIntersectionObserver: any = null
   renderActualImage = false
+  windowReady = false
   renderImageDone = false
   saveData: any = undefined
   resizeObserver: any
@@ -109,9 +111,7 @@ export default class ImgPie extends Vue {
 
   get _src(): string | undefined {
     let src = undefined
-    if (!this.lazy) {
-      src = this.computeImageSrc()
-    } else if (this.renderActualImage) {
+    if (this.renderActualImage) {
       src = this.computeImageSrc()
     }
     return src
@@ -156,17 +156,19 @@ export default class ImgPie extends Vue {
     return placeholderStyle
   }
 
-  get _wrapperClass(): string {
+  get _wrapperClass(): string[] {
     const wrapperClass = [`img-pie-w`]
-    if (!this.transition.hasOwnProperty(`none`)) {
-      if (this.transition.hasOwnProperty(`fade`)) {
-        wrapperClass.push(`img-pie-tf`)
-      }
-      if (this.transition.hasOwnProperty(`zoom`)) {
-        wrapperClass.push(`img-pie-tz`)
+    if (this.windowReady) {
+      if (!this.transition.hasOwnProperty(`none`)) {
+        if (this.transition.hasOwnProperty(`fade`)) {
+          wrapperClass.push(`img-pie-tf`)
+        }
+        if (this.transition.hasOwnProperty(`zoom`)) {
+          wrapperClass.push(`img-pie-tz`)
+        }
       }
     }
-    return wrapperClass.join(` `)
+    return wrapperClass
   }
 
   get _wrapperStyle(): Record<string, string> {
@@ -181,7 +183,7 @@ export default class ImgPie extends Vue {
     }
   }
 
-  transformQueryString(params: any): string {
+  transformQueryString(params: Record<string, string>): string {
     return Object.keys(params)
       .map((key) => key + '=' + params[key])
       .join('&')
@@ -193,7 +195,6 @@ export default class ImgPie extends Vue {
 
   onImageLoad(): void {
     this.renderImageDone = true
-    console.log('loaded')
   }
 
   preComputeStyle(): Record<string, string> {
@@ -210,8 +211,8 @@ export default class ImgPie extends Vue {
     return preComputedStyle
   }
 
-  computeEverything(element: Element): Record<string, string> {
-    const config: any = {}
+  computeEverything(): Record<string, string> {
+    const config: Record<string, string> = {}
     let _ratio
     if (!this.lazy) {
       config['mode'] = this.mode || `cover`
@@ -221,37 +222,36 @@ export default class ImgPie extends Vue {
       return {
         ...config,
       }
+    }
+    const element: any = this.$refs.p
+    const computedStyle = getComputedStyle(element)
+    const actualMode = this.mode || ['contain', 'cover'].includes(computedStyle.backgroundSize) ? computedStyle.backgroundSize : `cover`
+    if (this.ratio === 0) {
+      _ratio = actualMode === `contain` ? 1 : this.cssWithoutPx(computedStyle.height) / Math.max(1, this.cssWithoutPx(computedStyle.width))
     } else {
-      const computedStyle = getComputedStyle(element)
-      const actualMode = this.mode || ['contain', 'cover'].includes(computedStyle.backgroundSize) ? computedStyle.backgroundSize : `cover`
-      if (this.ratio === 0) {
-        _ratio = actualMode === `contain` ? 1 : this.cssWithoutPx(computedStyle.height) / Math.max(1, this.cssWithoutPx(computedStyle.width))
-      } else {
-        _ratio = this.ratio ?? this.cssWithoutPx(computedStyle.fontSize)
-      }
-      let width = Math.max(1, this.cssWithoutPx(computedStyle.width))
-      let height = _ratio * width
-      const maxDpr = this.disableDpr ? 1 : Math.min(this.$params.maxDPR ? this.$params.maxDPR : window.devicePixelRatio, window.devicePixelRatio)
-      width = Math.max(1, Math.round(width)) * maxDpr
-      height = Math.max(1, Math.round(height)) * maxDpr
-      const actualPreTransform = this.computePreTransform(this._anchor)
-      this.saveData = actualPreTransform
-      config['width'] = width
-      config['height'] = height
-      config['mode'] = actualMode
-      config['placeholder'] = this.placeholder
-      config['src'] = this.src
-      config['origin'] = this.origin ? this.origin : this.$origin
-      return {
-        ...config,
-        ...actualPreTransform,
-      }
+      _ratio = this.ratio ?? this.cssWithoutPx(computedStyle.fontSize)
+    }
+    let width = Math.max(1, this.cssWithoutPx(computedStyle.width))
+    let height = _ratio * width
+    const maxDpr = this.disableDpr ? 1 : Math.min(this.$params.maxDPR ? this.$params.maxDPR : window.devicePixelRatio, window.devicePixelRatio)
+    width = Math.max(1, Math.round(width)) * maxDpr
+    height = Math.max(1, Math.round(height)) * maxDpr
+    const actualPreTransform = this.computePreTransform(this._anchor)
+    this.saveData = actualPreTransform
+    config['width'] = width.toString()
+    config['height'] = height.toString()
+    config['mode'] = actualMode
+    config['placeholder'] = this.placeholder
+    config['src'] = this.src
+    config['origin'] = this.origin ? this.origin : this.$origin
+    return {
+      ...config,
+      ...actualPreTransform,
     }
   }
 
   computeImageSrc(): string {
-    const placeholderEl: any = this.$refs.p
-    const computedPlaceholder = this.computeEverything(placeholderEl)
+    const computedPlaceholder = this.computeEverything()
     const params: any = {}
     for (let key in computedPlaceholder) {
       switch (key) {
@@ -275,11 +275,11 @@ export default class ImgPie extends Vue {
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
 
-  computePlaceholderBackground(element: Element): Record<string, string> {
+  computePlaceholderBackground(): Record<string, string> {
     if (!this.placeholder || !this.src || this.transition.hasOwnProperty(`zoom`)) {
       return {}
     }
-    return this.computeEverything(element)
+    return this.computeEverything()
   }
 
   computePreTransform({ x, y }: AnchorObject): Record<string, string> {
@@ -290,7 +290,7 @@ export default class ImgPie extends Vue {
   }
 
   getUrlWithLeadingSlash(relativePath: string) {
-    if(relativePath.charAt(0) === '/') {
+    if (relativePath.charAt(0) === '/') {
       return relativePath
     }
     return `/${relativePath}`
@@ -300,7 +300,7 @@ export default class ImgPie extends Vue {
     if (!placeholderElement || !domain) {
       return
     }
-    const wrapperBackground = this.computePlaceholderBackground(placeholderElement)
+    const wrapperBackground = this.computePlaceholderBackground()
     const params: any = {}
     for (let key in wrapperBackground) {
       switch (key) {
@@ -327,31 +327,41 @@ export default class ImgPie extends Vue {
     placeholderElement.style.backgroundImage = backgroundImage
   }
 
-  onInteractionEnter(): void {
+  onImgInteractionEnter(): void {
     this.renderActualImage = true
-    this.intersectionObserver.disconnect()
+    this.imgIntersectionObserver.disconnect()
+  }
+
+  onPlaceholderInteractionEnter(placeholderRef: any): void {
+    this.setPlaceholderElement(placeholderRef, this.$domain)
+    this.placeholderIntersectionObserver.disconnect()
   }
 
   created(): void {
-    if(!this.active) {
+    if (!this.active) {
       this.renderActualImage = !this.lazy
     }
   }
 
   mounted(): void {
+    this.windowReady = true
     if (this.lazy) {
-      const placeholderRef: any = this.$refs.p
-      this.resizeObserver = new ResizeObserver(this.handleResizeObserver)
-      if (placeholderRef) {
-        this.setPlaceholderElement(placeholderRef, this.$domain)
+      if (this.enablePlaceholder) {
+        const placeholderRef: any = this.$refs.p
+        //todo this.resizeObserver = new ResizeObserver(this.handleResizeObserver)
+        if (placeholderRef) {
+          // todo this.resizeObserver.observe(placeholderRef)
+          this.placeholderIntersectionObserver = onIntersect(placeholderRef, this.onPlaceholderInteractionEnter, true, {
+            threshold: 0,
+          })
+        }
       }
       const imgPieRef: any = this.$refs.imgPie
       if (imgPieRef) {
-        this.intersectionObserver = onIntersect(imgPieRef, this.onInteractionEnter, true, {
-          threshold: 0.8,
+        this.imgIntersectionObserver = onIntersect(imgPieRef, this.onImgInteractionEnter, true, {
+          threshold: 0.5,
         })
       }
-      this.resizeObserver.observe(placeholderRef)
     }
   }
 
@@ -360,8 +370,11 @@ export default class ImgPie extends Vue {
     if (this.resizeObserver && placeholderRef) {
       this.resizeObserver.unobserve(placeholderRef)
     }
-    if (this.intersectionObserver) {
-      this.intersectionObserver.disconnect()
+    if (this.imgIntersectionObserver) {
+      this.imgIntersectionObserver.disconnect()
+    }
+    if (this.placeholderIntersectionObserver) {
+      this.placeholderIntersectionObserver.disconnect()
     }
   }
 }
