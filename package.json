@@ -1,10 +1,11 @@
 {
   "name": "@codepie/img-pie",
-  "version": "2.4.8",
+  "version": "2.5.1",
   "description": "A Vue component for img pie proxy.",
   "author": "The @codepie/material-vue authors (https://github.com/codepie-io/img-pie/graphs/contributors)",
   "maintainers": [
-    "Prakash Bharti <prakash.codepie@gmail.com>"
+    "Prakash Bharti <prakash.codepie@gmail.com>",
+    "Meghana Rao <meghanau96@gmail.com>"
   ],
   "license": "MIT",
   "main": "./dist/img-pie.common.js",

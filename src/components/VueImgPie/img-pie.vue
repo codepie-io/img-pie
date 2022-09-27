@@ -159,15 +159,66 @@ export default class ImgPie extends Vue {
 
   get headLink(): any {
     if (this.preload && !this.lazy) {
-      return {
-        link: [
-          {
+      if (this._srcSets.length === 1) {
+        return {
+          link: [
+            {
+              rel: 'preload',
+              as: 'image',
+              href: this.ssrMainSrc,
+              hid: this.guid,
+            },
+          ],
+        }
+      }
+      const links: Record<string, any> = []
+      let mediaMap = []
+      for (let i = 0; i < this._srcSets.length; i++) {
+        if (this._srcSets[i].maxWidth) {
+          mediaMap.push({ ...this._srcSets[i] })
+        } else {
+          mediaMap.push({ ...this._srcSets[i], maxWidth: Infinity })
+        }
+      }
+      mediaMap = mediaMap.sort((a, b) => {
+        return a.maxWidth - b.maxWidth
+      })
+      let prevMediaWidth = -1
+      let nextMediaWidth = -1
+      let mediaMapLength = mediaMap.length
+      for (let i = 0; i < mediaMapLength; i++) {
+        if (i === 0) {
+          prevMediaWidth = mediaMap[i].maxWidth
+          nextMediaWidth = mediaMap[i + 1].maxWidth
+          links.push({
             rel: 'preload',
             as: 'image',
-            href: this.ssrMainSrc,
-            hid: this.guid,
-          },
-        ],
+            media: `(max-width: ${prevMediaWidth}px)`,
+            href: this.getSsrImageSrc(mediaMap[i]),
+            hid: this.getUID(),
+          })
+        } else if (i > 0 && i < mediaMapLength - 1) {
+          links.push({
+            rel: 'preload',
+            as: 'image',
+            media: `(min-width: ${prevMediaWidth + 0.1}px) and (max-width: ${nextMediaWidth}px)`,
+            href: this.getSsrImageSrc(mediaMap[i]),
+            hid: this.getUID(),
+          })
+          prevMediaWidth = mediaMap[i].maxWidth
+          nextMediaWidth = mediaMap[i + 1].maxWidth
+        } else {
+          links.push({
+            rel: 'preload',
+            as: 'image',
+            media: `(min-width: ${prevMediaWidth + 0.1}px)`,
+            href: this.getSsrImageSrc(mediaMap[i]),
+            hid: this.getUID(),
+          })
+        }
+      }
+      return {
+        link: links,
       }
     }
     return {}
