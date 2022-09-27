@@ -9,6 +9,12 @@ export interface AnchorObject {
   y: string | undefined,
 }
 
+export interface SrcObject {
+  maxWidth: number,
+  ratio: number,
+  main?: boolean,
+}
+
 export interface Attributes {
   alt?: string,
   anchor?: string,
@@ -47,10 +53,4 @@ export interface PlaceholderData {
   ratio: number,
   transitions: Record< string, boolean >,
   src: string
-}
-
-export interface PlaceholderHandler {
-  delete: () => void,
-  setData: ( data: PlaceholderData ) => void,
-  setPlaceholderElement: ( placeholderElement: HTMLDivElement, domain: string ) => void,
 }

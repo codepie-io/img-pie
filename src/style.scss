@@ -1,0 +1,50 @@
+.img-pie {
+  overflow: hidden;
+  &__wrapper {
+    overflow: hidden;
+    position: relative;
+    padding-top: 100%;
+    width: 100%;
+  }
+
+  &__wrapper > * {
+    display: block;
+    left: 0;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    visibility: hidden;
+    width: 100%;
+    transition-property: opacity, transform;
+    will-change: opacity, transform;
+    object-fit: cover;
+    object-position: center;
+    transition-delay: 0s;
+    transition-duration: 400ms;
+    transition-timing-function: ease;
+  }
+
+  &__placeholder {
+    background-repeat: no-repeat;
+    visibility: visible;
+    background-size: cover;
+    background-position: center;
+    opacity: 1;
+  }
+
+  &__picture {
+    display: flex;
+  }
+
+  &--done {
+    .img-pie__img {
+      opacity: 1;
+      transform: none !important;
+      visibility: visible !important;
+    }
+    .img-pie__placeholder {
+      opacity: 0 !important;
+      pointer-events: none;
+    }
+  }
+}

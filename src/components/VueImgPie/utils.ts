@@ -1,17 +1,5 @@
 export const wait = (ms = 0): Promise<void> => new Promise<void>((resolve) => (ms > 0 ? setTimeout(resolve, ms) : resolve()))
 
-export const debounce = (fn: () => void, ms = 0): (() => void) => {
-  let promise: Promise<void> | undefined
-  return () => {
-    if (!promise) {
-      promise = wait(ms).then(() => {
-        promise = undefined
-        fn()
-      })
-    }
-  }
-}
-
 export const isBrowser = typeof document !== `undefined`
 
 export const onIntersect = (elementToWatch: HTMLElement, callback: any, once = true, options = { threshold: 1.0 }) => {

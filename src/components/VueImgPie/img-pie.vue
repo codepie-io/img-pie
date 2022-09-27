@@ -1,28 +1,45 @@
 <template>
-  <div ref="imgPie" class="img-pie-i">
-    <div :class="_wrapperClass" :style="_wrapperStyle">
-      <img :alt="_alt" :loading="this.lazy ? 'lazy' : false" :style="_style" :src="_src" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
-      <div ref="p" :style="_placeholderStyle" />
+  <div ref="imgPie" class="img-pie" :class="{ 'img-pie--done': renderImageDone }">
+    <pie-style v-if="_mediaQuery && !localLazy">{{ _mediaQuery }}</pie-style>
+    <div ref="imgPie" :id="guid" class="img-pie__wrapper" :style="_wrapperStyle">
+      <picture v-if="!localLazy" class="img-pie__picture">
+        <template>
+          <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item)" :media="getMedia(item)" />
+        </template>
+        <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
+      </picture>
+      <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="lazyMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
+      <div class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
     </div>
   </div>
 </template>
-
 <script lang="ts">
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator'
-import { debounce, onIntersect } from './utils'
+import throttle from 'lodash.throttle'
+import ResizeObserver from 'resize-observer-polyfill'
+import { onIntersect } from './utils'
 import { AnchorObject, Mode, Placeholder } from './types'
+import PieStyle from './pie-style.vue'
 
 const rPx = /px$/
 
 @Component({
-  components: {},
+  components: {
+    PieStyle,
+  },
+  head() {
+    return this.headLink
+  },
 })
 export default class ImgPie extends Vue {
   @Prop({ type: String, default: '' }) readonly alt!: string
   @Prop({ type: String, default: '' }) readonly origin!: string
+  @Prop({ type: String, default: undefined }) readonly loading!: undefined | string
+  @Prop({ type: [String, Boolean], default: undefined }) readonly crossorigin!: undefined | string | boolean
+  @Prop({ type: Boolean, default: false }) readonly preload!: any
   @Prop({ type: Boolean, default: false }) readonly active!: boolean
   @Prop({ type: Boolean, default: false }) readonly disableDpr!: boolean
-  @Prop({ type: Boolean, default: false }) readonly enablePlaceholder!: boolean
+  @Prop({ type: Boolean, default: false }) readonly lazyPlaceholder!: boolean
   @Prop({ type: Boolean, default: true }) readonly lazy!: boolean
   @Prop({
     type: String,
@@ -32,7 +49,6 @@ export default class ImgPie extends Vue {
     },
   })
   readonly anchor!: string
-  @Prop({ type: String, default: '' }) readonly bot!: string
   @Prop({ type: String, default: '' }) readonly focus!: string
   @Prop({ type: String, default: 'cover' }) readonly mode!: Mode
   @Prop({
@@ -55,7 +71,7 @@ export default class ImgPie extends Vue {
     default: 100,
   })
   readonly step!: number | undefined
-  @Prop({ type: String, required: true }) readonly src!: string
+  @Prop({ type: [String, Array], required: true }) readonly src!: string | Record<string, any>
   @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: any
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
   @Prop({ type: String, default: '400ms' }) readonly transitionDuration!: string
@@ -64,21 +80,98 @@ export default class ImgPie extends Vue {
   @Watch('active', { immediate: true })
   onActive(value: boolean): void {
     if (value && this.windowReady) {
-      this.renderActualImage = value
+      this.updateImage()
     }
   }
 
   $domain: any
+  $step: any
   $params: any
   $origin: any
+  lazyMainSrc: any = ''
+  processPlaceholderConfig: Record<string, any> = {}
+  processImageConfig: Record<string, any> = {}
+  localLazy: any = this.lazy
+  placeholderWindowSize: any = null
+  imageWindowSize: any = null
+  localRatio: any = this.ratio
+  placeholderStyle: Record<string, string> = {}
   imgIntersectionObserver: any = null
   placeholderIntersectionObserver: any = null
-  renderActualImage = false
+  wrapperResizeObserver: any = null
   windowReady = false
   renderImageDone = false
   saveData: any = undefined
   resizeObserver: any
-  handleResizeObserver = debounce(() => console.log("I'll only run 250ms after the body has finished resizing"), 250)
+  guid: string = this.getUID()
+
+  get _step() {
+    return this.step ? this.step : this.$step
+  }
+
+  get _srcSets() {
+    const sets: any[] = []
+    if (typeof this.src === 'string') {
+      sets.push({ src: this.src, main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin })
+    } else {
+      for (let i = 0; i < this.src.length; i++) {
+        if (typeof this.src[i] === 'string') {
+          sets.push({ src: this.src[i], main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin })
+        } else {
+          sets.push({ src: this.src[i].src, maxWidth: this.src[i].maxWidth, ratio: this.src[i].ratio ? this.src[i].ratio : this.ratio, origin: this.origin ? this.origin : this.$origin })
+        }
+      }
+    }
+    return sets
+  }
+
+  get _mediaQuery(): string {
+    let mediaQuery = ''
+    this._srcSets.forEach((setItem: any) => {
+      if (setItem.maxWidth) {
+        mediaQuery += `@media(max-width:${setItem.maxWidth}px){#${this.guid}{padding-top: ${setItem.ratio * 100}%!important}}`
+      }
+    })
+    return mediaQuery
+  }
+
+  get mainSrc(): string {
+    const getMainSrc = this._srcSets.find((item: any) => {
+      return item.main
+    })
+    return getMainSrc.src
+  }
+
+  get ssrMainSrc(): string | undefined {
+    let src = undefined
+    const getMainSrc = this._srcSets.find((item: any) => {
+      return item.main
+    })
+    if (!this.lazy) {
+      src = this.getSsrImageSrc(getMainSrc)
+    }
+    return src
+  }
+
+  get _crossorigin() {
+    return this.crossorigin === true ? 'anonymous' : this.crossorigin || undefined
+  }
+
+  get headLink(): any {
+    if (this.preload && !this.lazy) {
+      return {
+        link: [
+          {
+            rel: 'preload',
+            as: 'image',
+            href: this.ssrMainSrc,
+            hid: this.guid,
+          },
+        ],
+      }
+    }
+    return {}
+  }
 
   get _anchor(): AnchorObject {
     const rAnchor = /\b(?:(left|right)|(bottom|top))\b/g
@@ -103,31 +196,19 @@ export default class ImgPie extends Vue {
   get _alt(): string {
     const rAlt = /\/?([^/?#.]+)(?:\.[^/?#]*)?(?:[?#].*)?$/
     if (!this.alt) {
-      const tmp = rAlt.exec(this.src)
+      const tmp = rAlt.exec(this.mainSrc)
       return (tmp && tmp[1]) || `image`
     }
     return this.alt
   }
 
-  get _src(): string | undefined {
-    let src = undefined
-    if (this.renderActualImage) {
-      src = this.computeImageSrc()
-    }
-    return src
-  }
-
   get _dataAttributes(): Record<string, string> {
     const attributes: Record<string, string> = {}
-    attributes[`data-img-pie-bot`] = `${this.bot}/`
     if (this.src) {
-      attributes[`data-img-pie-src`] = this.src
+      attributes[`data-img-pie-src`] = this.mainSrc
     }
     if (this.step !== undefined) {
       attributes[`data-img-pie-step`] = String(this.step)
-    }
-    if (this.renderImageDone) {
-      attributes[`class`] = 'img-pie-done'
     }
     return attributes
   }
@@ -144,43 +225,69 @@ export default class ImgPie extends Vue {
     return computedStyle
   }
 
-  get _placeholderStyle(): Record<string, string> {
-    const placeholderStyle = this.preComputeStyle()
-    if (this.mode) {
-      placeholderStyle[`backgroundSize`] = this.mode
-    }
-    const actualPosition = this.computePosition(this._anchor, this.mode, this.position)
-    if (actualPosition) {
-      placeholderStyle[`backgroundPosition`] = actualPosition
-    }
-    return placeholderStyle
-  }
-
-  get _wrapperClass(): string[] {
-    const wrapperClass = [`img-pie-w`]
-    if (this.windowReady) {
-      if (!this.transition.hasOwnProperty(`none`)) {
-        if (this.transition.hasOwnProperty(`fade`)) {
-          wrapperClass.push(`img-pie-tf`)
-        }
-        if (this.transition.hasOwnProperty(`zoom`)) {
-          wrapperClass.push(`img-pie-tz`)
-        }
-      }
-    }
-    return wrapperClass
-  }
-
   get _wrapperStyle(): Record<string, string> {
-    if (this.ratio === 0) {
+    if (this.localRatio === 0) {
       return {
         height: `100%`,
         paddingTop: `0`,
       }
     }
     return {
-      paddingTop: this.ratio === undefined ? `` : `${this.ratio * 100}%`,
+      paddingTop: this.localRatio === undefined ? `` : `${this.localRatio * 100}%`,
     }
+  }
+
+  getSrcConfigByWidth(width: any): Record<string, any> {
+    if (this._srcSets.length === 1) {
+      return this._srcSets[0]
+    }
+    let mediaMap = []
+    for (let i = 0; i < this._srcSets.length; i++) {
+      if (this._srcSets[i].maxWidth) {
+        mediaMap.push({ index: i, maxWidth: this._srcSets[i].maxWidth })
+      } else {
+        mediaMap.push({ index: i, maxWidth: Infinity })
+      }
+    }
+    mediaMap = mediaMap.sort((a, b) => {
+      return a.maxWidth - b.maxWidth
+    })
+    let findIndex = -1
+    for (let i = mediaMap.length - 1; i > -1; i--) {
+      if (width <= mediaMap[i].maxWidth) {
+        findIndex = mediaMap[i].index
+      }
+    }
+    return findIndex !== -1 ? this._srcSets[findIndex] : this._srcSets[0]
+  }
+
+  computePlaceholderStyle(mode: Mode, anchor: AnchorObject, position: string): Record<string, string> {
+    const placeholderStyleConfig = this.preComputeStyle()
+    if (mode) {
+      placeholderStyleConfig['backgroundSize'] = mode
+    }
+    const actualPosition = this.computePosition(anchor, mode, position)
+    if (actualPosition) {
+      placeholderStyleConfig['backgroundPosition'] = actualPosition
+    }
+    return placeholderStyleConfig
+  }
+
+  getUID(): string {
+    const characters = 'abcdefghijklmnopqrstuvwxyz'
+    let result = ''
+    let charactersLength = characters.length
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength))
+    }
+    return result
+  }
+
+  getMedia(srcSet: any) {
+    if (srcSet && srcSet.maxWidth) {
+      return `(max-width: ${this.cssWithoutPx(srcSet.maxWidth.toString())}px)`
+    }
+    return undefined
   }
 
   transformQueryString(params: Record<string, string>): string {
@@ -194,6 +301,7 @@ export default class ImgPie extends Vue {
   }
 
   onImageLoad(): void {
+    this.$emit('load')
     this.renderImageDone = true
   }
 
@@ -211,76 +319,59 @@ export default class ImgPie extends Vue {
     return preComputedStyle
   }
 
-  computeEverything(): Record<string, string> {
+  computeSsrImageConfig(src: string, origin: string): Record<string, string> {
+    const config: Record<string, string> = {}
+    config['mode'] = this.mode || 'cover'
+    config['src'] = src
+    config['origin'] = origin
+    return {
+      ...config,
+    }
+  }
+
+  computeLazyImageConfig(): Record<string, string> {
+    const imageConfig = this.getSrcConfigByWidth(window.innerWidth)
+    imageConfig['mode'] = this.mode
+    imageConfig['anchor'] = this._anchor
+    imageConfig['placeholder'] = this.placeholder
     const config: Record<string, string> = {}
     let _ratio
-    if (!this.lazy) {
-      config['mode'] = this.mode || `cover`
-      config['placeholder'] = this.placeholder
-      config['src'] = this.src
-      config['origin'] = this.origin ? this.origin : this.$origin
-      return {
-        ...config,
-      }
-    }
     const element: any = this.$refs.p
     const computedStyle = getComputedStyle(element)
-    const actualMode = this.mode || ['contain', 'cover'].includes(computedStyle.backgroundSize) ? computedStyle.backgroundSize : `cover`
-    if (this.ratio === 0) {
+    const actualMode = imageConfig.mode || ['contain', 'cover'].includes(computedStyle.backgroundSize) ? computedStyle.backgroundSize : `cover`
+    if (imageConfig.ratio === 0) {
       _ratio = actualMode === `contain` ? 1 : this.cssWithoutPx(computedStyle.height) / Math.max(1, this.cssWithoutPx(computedStyle.width))
     } else {
-      _ratio = this.ratio ?? this.cssWithoutPx(computedStyle.fontSize)
+      _ratio = imageConfig.ratio ?? this.cssWithoutPx(computedStyle.fontSize)
     }
     let width = Math.max(1, this.cssWithoutPx(computedStyle.width))
-    let height = _ratio * width
     const maxDpr = this.disableDpr ? 1 : Math.min(this.$params.maxDPR ? this.$params.maxDPR : window.devicePixelRatio, window.devicePixelRatio)
+    if (width > this._step) {
+      width = maxDpr > 1 ? Math.floor(width / this._step) * this._step : Math.ceil(width / this._step) * this._step
+    }
+    let height = _ratio * width
     width = Math.max(1, Math.round(width)) * maxDpr
     height = Math.max(1, Math.round(height)) * maxDpr
-    const actualPreTransform = this.computePreTransform(this._anchor)
+    const actualPreTransform = this.computePreTransform(imageConfig.anchor)
     this.saveData = actualPreTransform
     config['width'] = width.toString()
     config['height'] = height.toString()
     config['mode'] = actualMode
-    config['placeholder'] = this.placeholder
-    config['src'] = this.src
-    config['origin'] = this.origin ? this.origin : this.$origin
+    config['placeholder'] = imageConfig.placeholder
+    config['src'] = imageConfig.src
+    config['origin'] = imageConfig.origin
     return {
       ...config,
       ...actualPreTransform,
     }
   }
 
-  computeImageSrc(): string {
-    const computedPlaceholder = this.computeEverything()
-    const params: any = {}
-    for (let key in computedPlaceholder) {
-      switch (key) {
-        case 'mode':
-          params['mode'] = computedPlaceholder['mode']
-          break
-        case 'width':
-          params['width'] = computedPlaceholder['width']
-          break
-        case 'height':
-          params['height'] = computedPlaceholder['height']
-          break
-        case 'origin':
-          params['origin'] = computedPlaceholder['origin']
-          break
-      }
-    }
-    const queryString = this.transformQueryString(params)
-    return queryString ? `${this.$domain}${this.getUrlWithLeadingSlash(this.src)}?${queryString}` : `${this.$domain}${this.getUrlWithLeadingSlash(this.src)}`
+  getSsrImageSrc(config: Record<string, any>): string {
+    const imageConfig = this.computeSsrImageConfig(config.src, config.origin)
+    return this.getImageSrc(this.$domain, imageConfig)
   }
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
-
-  computePlaceholderBackground(): Record<string, string> {
-    if (!this.placeholder || !this.src || this.transition.hasOwnProperty(`zoom`)) {
-      return {}
-    }
-    return this.computeEverything()
-  }
 
   computePreTransform({ x, y }: AnchorObject): Record<string, string> {
     const actualFocus: any = this.mode !== `contain` && (this.focus || (y ? (x ? `${y}-${x}` : y) : x))
@@ -296,72 +387,161 @@ export default class ImgPie extends Vue {
     return `/${relativePath}`
   }
 
-  setPlaceholderElement(placeholderElement: HTMLDivElement, domain: string): void {
-    if (!placeholderElement || !domain) {
-      return
-    }
-    const wrapperBackground = this.computePlaceholderBackground()
+  getPlaceholder(placeholderElement: HTMLDivElement, domain: string, imageConfig: Record<string, any>): string {
     const params: any = {}
-    for (let key in wrapperBackground) {
+    for (let key in imageConfig) {
       switch (key) {
         case 'mode':
-          params['mode'] = wrapperBackground['mode']
+          params['mode'] = imageConfig['mode']
           break
         case 'width':
-          params['width'] = wrapperBackground['width']
+          params['width'] = imageConfig['width']
           break
         case 'height':
-          params['height'] = wrapperBackground['height']
+          params['height'] = imageConfig['height']
           break
         case 'origin':
-          params['origin'] = wrapperBackground['origin']
+          params['origin'] = imageConfig['origin']
           break
         case 'placeholder':
-          params['placeholder'] = wrapperBackground['placeholder']
+          params['placeholder'] = imageConfig['placeholder']
           break
       }
     }
-    let backgroundImage = ''
     const queryString = this.transformQueryString(params)
-    backgroundImage = `url(${domain}${this.getUrlWithLeadingSlash(wrapperBackground.src)}?${queryString})`
-    placeholderElement.style.backgroundImage = backgroundImage
+    return `url(${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString})`
+  }
+
+  getImageSrc(domain: string, imageConfig: Record<string, any>) {
+    const params: any = {}
+    for (let key in imageConfig) {
+      switch (key) {
+        case 'mode':
+          params['mode'] = imageConfig['mode']
+          break
+        case 'width':
+          params['width'] = imageConfig['width']
+          break
+        case 'height':
+          params['height'] = imageConfig['height']
+          break
+        case 'origin':
+          params['origin'] = imageConfig['origin']
+          break
+      }
+    }
+    const queryString = this.transformQueryString(params)
+    return queryString ? `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
   }
 
   onImgInteractionEnter(): void {
-    this.renderActualImage = true
+    this.updateImage()
     this.imgIntersectionObserver.disconnect()
   }
 
-  onPlaceholderInteractionEnter(placeholderRef: any): void {
-    this.setPlaceholderElement(placeholderRef, this.$domain)
+  onPlaceholderInteractionEnter(): void {
+    this.updatePlaceholder()
     this.placeholderIntersectionObserver.disconnect()
   }
 
-  created(): void {
-    if (!this.active) {
-      this.renderActualImage = !this.lazy
+  shouldUpdatePlaceholderSize(): boolean {
+    if (!this.placeholderWindowSize) {
+      return true
+    }
+    if (window.innerWidth > this.placeholderWindowSize) {
+      return true
+    }
+    if (window.innerWidth < this.placeholderWindowSize) {
+      if (this._srcSets.length > 1) {
+        const imageConfig = this.computeLazyImageConfig()
+        return imageConfig.src !== this.processPlaceholderConfig.src
+      }
+      return false
+    }
+    return false
+  }
+
+  shouldUpdateImageSize(): boolean {
+    if (!this.imageWindowSize) {
+      return true
+    }
+    if (window.innerWidth > this.imageWindowSize) {
+      return true
+    }
+    if (window.innerWidth < this.imageWindowSize) {
+      if (this._srcSets.length > 1) {
+        const imageConfig = this.computeLazyImageConfig()
+        return imageConfig.src !== this.processImageConfig.src
+      }
+      return false
+    }
+    return false
+  }
+
+  updatePlaceholder() {
+    // Update placeholder style
+    if (this.shouldUpdatePlaceholderSize()) {
+      this.updateWrapperStyle()
+      this.placeholderStyle = this.computePlaceholderStyle(this.mode, this._anchor, this.position)
+      const placeholderRef: any = this.$refs.p
+      if (this.placeholder !== 'none') {
+        const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin)
+        this.placeholderStyle['backgroundImage'] = this.getPlaceholder(placeholderRef, this.$domain, imageConfig)
+        this.processPlaceholderConfig = imageConfig
+      }
+      this.placeholderWindowSize = window.innerWidth
     }
   }
 
+  handleResizeObserver() {
+    if (this.lazyMainSrc) {
+      this.updateImage()
+    } else {
+      this.updatePlaceholder()
+    }
+  }
+
+  updateImage() {
+    // Update img src
+    if (this.shouldUpdateImageSize()) {
+      this.updateWrapperStyle()
+      const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin)
+      this.lazyMainSrc = this.getImageSrc(this.$domain, imageConfig)
+      this.imageWindowSize = window.innerWidth
+      this.processImageConfig = imageConfig
+    }
+  }
+
+  updateWrapperStyle() {
+    const imageConfig = this.getSrcConfigByWidth(window.innerWidth)
+    this.localRatio = imageConfig.ratio
+  }
+
+  created(): void {}
+
   mounted(): void {
     this.windowReady = true
-    if (this.lazy) {
-      if (this.enablePlaceholder) {
+    if (this.localLazy) {
+      const imgPieRef: any = this.$refs.imgPie
+      if (this.placeholder !== 'none') {
         const placeholderRef: any = this.$refs.p
-        //todo this.resizeObserver = new ResizeObserver(this.handleResizeObserver)
         if (placeholderRef) {
-          // todo this.resizeObserver.observe(placeholderRef)
-          this.placeholderIntersectionObserver = onIntersect(placeholderRef, this.onPlaceholderInteractionEnter, true, {
-            threshold: 0,
-          })
+          if (this.lazyPlaceholder) {
+            this.placeholderIntersectionObserver = onIntersect(placeholderRef, this.onPlaceholderInteractionEnter, true, {
+              threshold: 0.1,
+            })
+          } else {
+            this.updatePlaceholder()
+          }
         }
       }
-      const imgPieRef: any = this.$refs.imgPie
-      if (imgPieRef) {
-        this.imgIntersectionObserver = onIntersect(imgPieRef, this.onImgInteractionEnter, true, {
-          threshold: 0.5,
-        })
-      }
+      // todo when active force update image
+      this.imgIntersectionObserver = onIntersect(imgPieRef, this.onImgInteractionEnter, true, {
+        threshold: 0.1,
+      })
+      const handleResizeObserver = throttle(this.handleResizeObserver, 500)
+      this.wrapperResizeObserver = new ResizeObserver(handleResizeObserver)
+      this.wrapperResizeObserver.observe(document.body)
     }
   }
 
@@ -375,6 +555,9 @@ export default class ImgPie extends Vue {
     }
     if (this.placeholderIntersectionObserver) {
       this.placeholderIntersectionObserver.disconnect()
+    }
+    if (this.wrapperResizeObserver) {
+      this.wrapperResizeObserver.disconnect()
     }
   }
 }
