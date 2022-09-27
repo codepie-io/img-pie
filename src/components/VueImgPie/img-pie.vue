@@ -4,7 +4,7 @@
     <div ref="imgPie" :id="guid" class="img-pie__wrapper" :style="_wrapperStyle">
       <picture v-if="!localLazy" class="img-pie__picture">
         <template>
-          <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item)" :media="getMedia(item)" />
+          <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item, true)" :media="getMedia(item)" />
         </template>
         <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
       </picture>
@@ -71,6 +71,11 @@ export default class ImgPie extends Vue {
     default: 100,
   })
   readonly step!: number | undefined
+  @Prop({
+    type: [Number, Object],
+    default: undefined,
+  })
+  readonly width!: number | undefined
   @Prop({ type: [String, Array], required: true }) readonly src!: string | Record<string, any>
   @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: any
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
@@ -112,13 +117,13 @@ export default class ImgPie extends Vue {
   get _srcSets() {
     const sets: any[] = []
     if (typeof this.src === 'string') {
-      sets.push({ src: this.src, main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin })
+      sets.push({ src: this.src, main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width })
     } else {
       for (let i = 0; i < this.src.length; i++) {
         if (typeof this.src[i] === 'string') {
-          sets.push({ src: this.src[i], main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin })
+          sets.push({ src: this.src[i], main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width })
         } else {
-          sets.push({ src: this.src[i].src, maxWidth: this.src[i].maxWidth, ratio: this.src[i].ratio ? this.src[i].ratio : this.ratio, origin: this.origin ? this.origin : this.$origin })
+          sets.push({ src: this.src[i].src, maxWidth: this.src[i].maxWidth, ratio: this.src[i].ratio ? this.src[i].ratio : this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.src[i].width })
         }
       }
     }
@@ -190,31 +195,64 @@ export default class ImgPie extends Vue {
         if (i === 0) {
           prevMediaWidth = mediaMap[i].maxWidth
           nextMediaWidth = mediaMap[i + 1].maxWidth
-          links.push({
-            rel: 'preload',
-            as: 'image',
-            media: `(max-width: ${prevMediaWidth}px)`,
-            href: this.getSsrImageSrc(mediaMap[i]),
-            hid: this.getUID(),
-          })
+          if (mediaMap[i].width) {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(max-width: ${prevMediaWidth}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+              imagesrcset: this.getSsrImageSrc(mediaMap[i], true),
+            })
+          } else {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(max-width: ${prevMediaWidth}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+            })
+          }
         } else if (i > 0 && i < mediaMapLength - 1) {
-          links.push({
-            rel: 'preload',
-            as: 'image',
-            media: `(min-width: ${prevMediaWidth + 0.1}px) and (max-width: ${nextMediaWidth}px)`,
-            href: this.getSsrImageSrc(mediaMap[i]),
-            hid: this.getUID(),
-          })
+          if (mediaMap[i].width) {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(min-width: ${prevMediaWidth + 0.1}px) and (max-width: ${nextMediaWidth}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+              imagesrcset: this.getSsrImageSrc(mediaMap[i], true),
+            })
+          } else {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(min-width: ${prevMediaWidth + 0.1}px) and (max-width: ${nextMediaWidth}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+            })
+          }
           prevMediaWidth = mediaMap[i].maxWidth
           nextMediaWidth = mediaMap[i + 1].maxWidth
         } else {
-          links.push({
-            rel: 'preload',
-            as: 'image',
-            media: `(min-width: ${prevMediaWidth + 0.1}px)`,
-            href: this.getSsrImageSrc(mediaMap[i]),
-            hid: this.getUID(),
-          })
+          if (mediaMap[i].width) {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(min-width: ${prevMediaWidth + 0.1}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+              imagesrcset: this.getSsrImageSrc(mediaMap[i], true),
+            })
+          } else {
+            links.push({
+              rel: 'preload',
+              as: 'image',
+              media: `(min-width: ${prevMediaWidth + 0.1}px)`,
+              href: this.getSsrImageSrc(mediaMap[i]),
+              hid: this.getUID(),
+            })
+          }
         }
       }
       return {
@@ -370,8 +408,11 @@ export default class ImgPie extends Vue {
     return preComputedStyle
   }
 
-  computeSsrImageConfig(src: string, origin: string): Record<string, string> {
-    const config: Record<string, string> = {}
+  computeSsrImageConfig(src: string, origin: string, width: undefined | number): Record<string, string> {
+    const config: Record<string, any> = {}
+    if (width) {
+      config['width'] = width
+    }
     config['mode'] = this.mode || 'cover'
     config['src'] = src
     config['origin'] = origin
@@ -417,9 +458,17 @@ export default class ImgPie extends Vue {
     }
   }
 
-  getSsrImageSrc(config: Record<string, any>): string {
-    const imageConfig = this.computeSsrImageConfig(config.src, config.origin)
-    return this.getImageSrc(this.$domain, imageConfig)
+  getSsrImageSrc(config: Record<string, any>, srcset = false): string {
+    if (config.width) {
+      if (srcset) {
+        const imageConfig1x = this.computeSsrImageConfig(config.src, config.origin, config.width)
+        const imageConfig2x = this.computeSsrImageConfig(config.src, config.origin, 2 * config.width)
+        return `${this.getImageSrc(this.$domain, imageConfig2x)} 2x, ${this.getImageSrc(this.$domain, imageConfig1x)} 1x`
+      }
+      const imageConfig1x = this.computeSsrImageConfig(config.src, config.origin, config.width)
+      return `${this.getImageSrc(this.$domain, imageConfig1x)}`
+    }
+    return this.getImageSrc(this.$domain, this.computeSsrImageConfig(config.src, config.origin, config.width))
   }
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
@@ -536,7 +585,7 @@ export default class ImgPie extends Vue {
       this.placeholderStyle = this.computePlaceholderStyle(this.mode, this._anchor, this.position)
       const placeholderRef: any = this.$refs.p
       if (this.placeholder !== 'none') {
-        const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin)
+        const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin, this.width)
         this.placeholderStyle['backgroundImage'] = this.getPlaceholder(placeholderRef, this.$domain, imageConfig)
         this.processPlaceholderConfig = imageConfig
       }
@@ -556,7 +605,7 @@ export default class ImgPie extends Vue {
     // Update img src
     if (this.shouldUpdateImageSize()) {
       this.updateWrapperStyle()
-      const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin)
+      const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin, this.width)
       this.lazyMainSrc = this.getImageSrc(this.$domain, imageConfig)
       this.imageWindowSize = window.innerWidth
       this.processImageConfig = imageConfig
