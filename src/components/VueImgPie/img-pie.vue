@@ -509,7 +509,10 @@ export default class ImgPie extends Vue {
       }
     }
     const queryString = this.transformQueryString(params)
-    return `url(${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString})`
+    if (domain) {
+      return `url(${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString})`
+    }
+    return ''
   }
 
   getImageSrc(domain: string, imageConfig: Record<string, any>) {
@@ -531,7 +534,10 @@ export default class ImgPie extends Vue {
       }
     }
     const queryString = this.transformQueryString(params)
-    return queryString ? `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
+    if (domain) {
+      return queryString ? `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
+    }
+    return queryString ? `https://${imageConfig.origin}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `https://${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
   }
 
   onImgInteractionEnter(): void {
@@ -597,7 +603,9 @@ export default class ImgPie extends Vue {
     if (this.lazyMainSrc) {
       this.updateImage()
     } else {
-      this.updatePlaceholder()
+      if (!this.lazyPlaceholder) {
+        this.updatePlaceholder()
+      }
     }
   }
 
