@@ -77,6 +77,7 @@ export default class ImgPie extends Vue {
   })
   readonly width!: number | undefined
   @Prop({ type: [String, Array], required: true }) readonly src!: string | Record<string, any>
+  @Prop({ type: Array, default: [] }) readonly dprSet!: string | Record<string, any>[]
   @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: any
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
   @Prop({ type: String, default: '400ms' }) readonly transitionDuration!: string
@@ -117,13 +118,13 @@ export default class ImgPie extends Vue {
   get _srcSets() {
     const sets: any[] = []
     if (typeof this.src === 'string') {
-      sets.push({ src: this.src, main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width })
+      sets.push({ src: this.src, main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width, dprSet: this.dprSet })
     } else {
       for (let i = 0; i < this.src.length; i++) {
         if (typeof this.src[i] === 'string') {
-          sets.push({ src: this.src[i], main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width })
+          sets.push({ src: this.src[i], main: true, ratio: this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.width, dprSet: this.dprSet })
         } else {
-          sets.push({ src: this.src[i].src, maxWidth: this.src[i].maxWidth, ratio: this.src[i].ratio ? this.src[i].ratio : this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.src[i].width })
+          sets.push({ src: this.src[i].src, maxWidth: this.src[i].maxWidth, ratio: this.src[i].ratio ? this.src[i].ratio : this.ratio, origin: this.origin ? this.origin : this.$origin, width: this.src[i].width, dprSet: this.src[i].dprSet })
         }
       }
     }
@@ -458,11 +459,24 @@ export default class ImgPie extends Vue {
     }
   }
 
+  getMapSrcSetByDpr(config: Record<any, any>, dpr: number) {
+    if (config.dprSet instanceof Array) {
+      const findItem = config.dprSet.find((item: any) => {
+        return item.dpr === dpr
+      })
+      if (findItem) {
+        return findItem.src
+      }
+      return config.src
+    }
+    return config.src
+  }
+
   getSsrImageSrc(config: Record<string, any>, srcset = false): string {
     if (config.width) {
       if (srcset) {
-        const imageConfig1x = this.computeSsrImageConfig(config.src, config.origin, config.width)
-        const imageConfig2x = this.computeSsrImageConfig(config.src, config.origin, 2 * config.width)
+        const imageConfig1x = this.computeSsrImageConfig(this.getMapSrcSetByDpr(config, 1), config.origin, config.width)
+        const imageConfig2x = this.computeSsrImageConfig(this.getMapSrcSetByDpr(config, 2), config.origin, 2 * config.width)
         return `${this.getImageSrc(this.$domain, imageConfig2x)} 2x, ${this.getImageSrc(this.$domain, imageConfig1x)} 1x`
       }
       const imageConfig1x = this.computeSsrImageConfig(config.src, config.origin, config.width)
