@@ -1,13 +1,16 @@
 <template>
-  <div ref="imgPie" class="img-pie" :class="{ 'img-pie--done': renderImageDone }">
+  <div ref="imgPie" class="img-pie" :class="{ 'img-pie--done': computedRenderImageDone }">
     <pie-style v-if="_mediaQuery && !localLazy">{{ _mediaQuery }}</pie-style>
     <div ref="imgPie" :id="guid" class="img-pie__wrapper" :style="_wrapperStyle">
-      <picture v-if="!localLazy" class="img-pie__picture">
-        <template>
-          <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item, true)" :media="getMedia(item)" />
-        </template>
-        <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
-      </picture>
+      <template v-if="!localLazy">
+        <picture v-if="_srcSets.length > 1" class="img-pie__picture">
+          <template>
+            <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item, true)" :media="getMedia(item)" />
+          </template>
+          <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }"/>
+        </picture>
+        <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }"/>
+      </template>
       <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="lazyMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
       <div class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
     </div>
@@ -77,7 +80,13 @@ export default class ImgPie extends Vue {
   })
   readonly width!: number | undefined
   @Prop({ type: [String, Array], required: true }) readonly src!: string | Record<string, any>
-  @Prop({ type: Array, default: [] }) readonly dprSet!: string | Record<string, any>[]
+  @Prop({
+    type: Array,
+    default: () => {
+      return []
+    },
+  })
+  readonly dprSet!: string | Record<string, any>[]
   @Prop({ type: [String, Boolean], default: 'fade' }) readonly transition!: any
   @Prop({ type: String, default: '0ms' }) readonly transitionDelay!: string
   @Prop({ type: String, default: '400ms' }) readonly transitionDuration!: string
@@ -110,6 +119,13 @@ export default class ImgPie extends Vue {
   saveData: any = undefined
   resizeObserver: any
   guid: string = this.getUID()
+
+  get computedRenderImageDone() {
+    if(!this.localLazy) {
+      return true
+    }
+    return this.renderImageDone
+  }
 
   get _step() {
     return this.step ? this.step : this.$step
