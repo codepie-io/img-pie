@@ -7,12 +7,12 @@
           <template>
             <source v-for="(item, index) in _srcSets" :key="index" :srcset="getSsrImageSrc(item, true)" :media="getMedia(item)" />
           </template>
-          <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }"/>
+          <img class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" />
         </picture>
-        <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }"/>
+        <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" />
       </template>
       <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="lazyMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
-      <div class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
+      <div v-if="placeholder !== 'none'" class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
     </div>
   </div>
 </template>
@@ -121,7 +121,7 @@ export default class ImgPie extends Vue {
   guid: string = this.getUID()
 
   get computedRenderImageDone() {
-    if(!this.localLazy) {
+    if (!this.localLazy) {
       return true
     }
     return this.renderImageDone
@@ -660,6 +660,9 @@ export default class ImgPie extends Vue {
   mounted(): void {
     this.windowReady = true
     if (this.localLazy) {
+      if (this.active) {
+        this.updateImage()
+      }
       const imgPieRef: any = this.$refs.imgPie
       if (this.placeholder !== 'none') {
         const placeholderRef: any = this.$refs.p

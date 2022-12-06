@@ -1,6 +1,6 @@
 {
   "name": "@codepie/img-pie",
-  "version": "2.6.0",
+  "version": "2.6.4",
   "description": "A Vue component for img pie proxy.",
   "author": "The @codepie/material-vue authors (https://github.com/codepie-io/img-pie/graphs/contributors)",
   "maintainers": [
