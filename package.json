@@ -1,6 +1,6 @@
 {
   "name": "@codepie/img-pie",
-  "version": "2.6.4",
+  "version": "2.7.0",
   "description": "A Vue component for img pie proxy.",
   "author": "The @codepie/material-vue authors (https://github.com/codepie-io/img-pie/graphs/contributors)",
   "maintainers": [
@@ -24,6 +24,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "write": "gulp write",
     "lint": "vue-cli-service lint",
     "build-library": "vue-cli-service build --target lib --name img-pie ./src/install.js",
     "publish-package": "npm run build-library && npm publish --access public"

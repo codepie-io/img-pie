@@ -12,7 +12,7 @@
         <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="ssrMainSrc" v-bind="{ ..._dataAttributes }" />
       </template>
       <img v-else class="img-pie__img" :alt="_alt" :crossorigin="_crossorigin" :loading="loading" :style="_style" :src="lazyMainSrc" v-bind="{ ..._dataAttributes }" @load="onImageLoad" />
-      <div v-if="placeholder !== 'none'" class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
+      <div class="img-pie__placeholder" ref="p" :style="placeholderStyle" />
     </div>
   </div>
 </template>
@@ -99,7 +99,6 @@ export default class ImgPie extends Vue {
     }
   }
 
-  $domain: any
   $step: any
   $params: any
   $origin: any
@@ -493,12 +492,12 @@ export default class ImgPie extends Vue {
       if (srcset) {
         const imageConfig1x = this.computeSsrImageConfig(this.getMapSrcSetByDpr(config, 1), config.origin, config.width)
         const imageConfig2x = this.computeSsrImageConfig(this.getMapSrcSetByDpr(config, 2), config.origin, 2 * config.width)
-        return `${this.getImageSrc(this.$domain, imageConfig2x)} 2x, ${this.getImageSrc(this.$domain, imageConfig1x)} 1x`
+        return `${this.getImageSrc(imageConfig2x)} 2x, ${this.getImageSrc(imageConfig1x)} 1x`
       }
       const imageConfig1x = this.computeSsrImageConfig(config.src, config.origin, config.width)
-      return `${this.getImageSrc(this.$domain, imageConfig1x)}`
+      return `${this.getImageSrc(imageConfig1x)}`
     }
-    return this.getImageSrc(this.$domain, this.computeSsrImageConfig(config.src, config.origin, config.width))
+    return this.getImageSrc(this.computeSsrImageConfig(config.src, config.origin, config.width))
   }
 
   computePosition = ({ x, y }: AnchorObject, mode: Mode, position: string): any => mode === `contain` && (position || (y ? (x ? `${x} ${y}` : y) : x))
@@ -517,7 +516,7 @@ export default class ImgPie extends Vue {
     return `/${relativePath}`
   }
 
-  getPlaceholder(placeholderElement: HTMLDivElement, domain: string, imageConfig: Record<string, any>): string {
+  getPlaceholder(placeholderElement: HTMLDivElement, imageConfig: Record<string, any>): string {
     const params: any = {}
     for (let key in imageConfig) {
       switch (key) {
@@ -539,13 +538,10 @@ export default class ImgPie extends Vue {
       }
     }
     const queryString = this.transformQueryString(params)
-    if (domain) {
-      return `url(${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString})`
-    }
-    return ''
+    return `url(${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString})`
   }
 
-  getImageSrc(domain: string, imageConfig: Record<string, any>) {
+  getImageSrc(imageConfig: Record<string, any>) {
     const params: any = {}
     for (let key in imageConfig) {
       switch (key) {
@@ -564,10 +560,7 @@ export default class ImgPie extends Vue {
       }
     }
     const queryString = this.transformQueryString(params)
-    if (domain) {
-      return queryString ? `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
-    }
-    return queryString ? `https://${imageConfig.origin}${this.getUrlWithLeadingSlash(imageConfig.src)}?${queryString}` : `https://${domain}${this.getUrlWithLeadingSlash(imageConfig.src)}`
+    return queryString ? `${imageConfig.src}?${queryString}` : `${imageConfig.src}`
   }
 
   onImgInteractionEnter(): void {
@@ -622,7 +615,7 @@ export default class ImgPie extends Vue {
       const placeholderRef: any = this.$refs.p
       if (this.placeholder !== 'none') {
         const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin, this.width)
-        this.placeholderStyle['backgroundImage'] = this.getPlaceholder(placeholderRef, this.$domain, imageConfig)
+        this.placeholderStyle['backgroundImage'] = this.getPlaceholder(placeholderRef, imageConfig)
         this.processPlaceholderConfig = imageConfig
       }
       this.placeholderWindowSize = window.innerWidth
@@ -644,7 +637,7 @@ export default class ImgPie extends Vue {
     if (this.shouldUpdateImageSize()) {
       this.updateWrapperStyle()
       const imageConfig = this.localLazy ? this.computeLazyImageConfig() : this.computeSsrImageConfig(this.mainSrc, this.origin ? this.origin : this.$origin, this.width)
-      this.lazyMainSrc = this.getImageSrc(this.$domain, imageConfig)
+      this.lazyMainSrc = this.getImageSrc(imageConfig)
       this.imageWindowSize = window.innerWidth
       this.processImageConfig = imageConfig
     }
