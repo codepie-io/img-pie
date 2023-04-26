@@ -56,7 +56,7 @@ export default class ImgPie extends Vue {
   @Prop({ type: String, default: 'cover' }) readonly mode!: Mode
   @Prop({
     type: String,
-    default: 'preview',
+    default: 'none',
     validator(value: string): boolean {
       return ['preview', 'none'].includes(value)
     },
